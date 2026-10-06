@@ -1,0 +1,14 @@
+{
+  "name": "arastirma-masasi",
+  "displayName": "Araştırma masası modu",
+  "version": "0.1.0",
+  "description": "PDF yığınını ayıklar: betik metni çıkarır, Haiku eleyici künye + dahil/hariç verir, sadece dahil olanlara Sonnet sentez notu yazar. Aktif ajanı istemin üstünde gösterir.",
+  "author": {
+    "name": "Selma Kocabıyık",
+    "url": "https://www.selma.codes"
+  },
+  "homepage": "https://www.selma.codes",
+  "license": "LicenseRef-All-Rights-Reserved",
+  "keywords": ["arastirma", "pdf", "literatur", "kunye", "haiku", "mod"],
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,15 @@
+{
+  "name": "seviye-b",
+  "description": "AI Agents Masterclass, Seviye B: araştırma masası (@selma.builds). PDF yığınını Haiku eleyici ve Sonnet sentezle ayıklayan mod.",
+  "owner": {
+    "name": "Selma Kocabıyık",
+    "url": "https://www.selma.codes"
+  },
+  "plugins": [
+    {
+      "name": "arastirma-masasi",
+      "source": "./plugins/arastirma-masasi",
+      "description": "PDF yığınını ayıklar: betik metin çıkarır, Haiku eleyici künye + dahil/hariç verir, sadece dahil olanlara Sonnet sentez. Aktif ajan istemin üstünde."
+    }
+  ]
+}

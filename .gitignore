@@ -1,0 +1,22 @@
+# Gizli bilgiler
+.env
+.env.*
+*.key
+*.pem
+
+# Masa çalışırken üretilenler (örnek veride ya da kendi klasöründe)
+.masa/
+duzenli/
+notlar/
+kaynakca.bib
+
+# Claude Code'un mod için ürettiği tipler
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
+
+# Sistem ve araç dosyaları
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+node_modules/
