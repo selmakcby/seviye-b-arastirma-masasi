@@ -3,6 +3,7 @@
 #
 #   olc/olc.sh naif    [tekrar]   # Opus tek başına: oku, ele, adlandır, sentezle
 #   olc/olc.sh akilli  [tekrar]   # /arastirma-masasi: betik + Haiku eleyici + Sonnet sentez
+#   olc/olc.sh jev     [tekrar]   # aynısı, dahil/hariç kararı Jev'de (--eleyici jev; TYPESAFE_API_KEY ortamda)
 #   olc/olc.sh context            # mod kapalı / açık iken /context
 #
 # Her koşu geçici bir klasörde, ham/ kopyası üzerinde çalışır. Sonuç satırları olc/sonuclar.jsonl'a eklenir.
@@ -56,6 +57,17 @@ akilli() {
   python3 "$KOK/olc/puanla.py" akilli "$w" "$w/claude.json" "$ANAHTAR" | tee -a "$SONUC"
 }
 
+jev() {
+  if [ -z "${TYPESAFE_API_KEY:-}${JEV_ANAHTAR:-}" ]; then
+    echo "UYARI: TYPESAFE_API_KEY yok, Jev SAHTE modda koşacak (kararlar gerçek değil)." >&2
+  fi
+  local w; w="$(hazirla "jev-$1")"
+  local istem="/arastirma-masasi:arastirma-masasi $w \"$SORU\" $OLCUT --eleyici jev --onayli"
+  (cd "$w" && claude -p "$istem" --model sonnet --plugin-dir "$PLUGIN" --max-budget-usd "$BUTCE_AKILLI" "${ORTAK[@]}" \
+     > "$w/claude.json" 2> "$w/hata.txt") || true
+  python3 "$KOK/olc/puanla.py" jev "$w" "$w/claude.json" "$ANAHTAR" | tee -a "$SONUC"
+}
+
 context_olc() {
   local w="$ISLER/context" && mkdir -p "$w"
   (cd "$w" && claude -p "/context" --model sonnet --setting-sources project > "$w/kapali.txt" 2>&1) || true
@@ -71,8 +83,9 @@ main() {
   case "$komut" in
     naif)    for i in $(seq 1 "$tekrar"); do naif "$i"; done ;;
     akilli)  for i in $(seq 1 "$tekrar"); do akilli "$i"; done ;;
+    jev)     for i in $(seq 1 "$tekrar"); do jev "$i"; done ;;
     context) context_olc ;;
-    *) sed -n '2,9p' "$0"; exit 2 ;;
+    *) sed -n '2,10p' "$0"; exit 2 ;;
   esac
 }
 

@@ -47,6 +47,7 @@ ham/*.pdf ──► masa.py cikar ──► .masa/ilk-sayfalar.md        (betik,
 | `agents/sentezci.md` | dahil olanların tam metninden sentez notu | Gerçekten okuma gerekiyor, az belge: güçlü model |
 | `skills/arastirma-masasi/SKILL.md` | akışı yöneten komut | Her seferinde aynı talimatı yapıştırmamak için |
 | `hooks/register.ts` | istemin üstündeki bant | Hangi ajanın, hangi modelle çalıştığı görünsün |
+| `scripts/jev_ele.py` | isteğe bağlı: dahil/hariç kararını Jev verir (`--eleyici jev`) | Karar tek adımlı, seçenekler belli, güven gerekiyor |
 
 ## 1. Kurulum
 
@@ -131,12 +132,14 @@ Aynı 24 PDF, aynı soru. `olc/olc.sh` her koşuyu geçici bir klasörde, `ham/`
 |---|---|---|---|---|
 | Naif (Opus tek başına, 3 koşu) | 0,61 | 115 sn | 24/24 | 24/24 |
 | Akıllı (betik + Haiku + Sonnet, 2 koşu) | 0,36 | 190 sn | 24/24 | 24/24 |
+| Jev eleyici (betik + Haiku künye + Jev karar + Sonnet, 2 koşu) | 0,39 | 184 sn (duvar) | 19/24 + 5 insana, yanlış 0 | 24/24 |
 
 Akıllı yol yaklaşık %41 ucuz ama 1,6 kat yavaş; doğruluk aynı. Ayrıntı ve yorum: [`olc/SONUC.md`](olc/SONUC.md).
 Kendin ölçmek için:
 
 ```bash
 olc/olc.sh akilli 2     # iki koşu
+olc/olc.sh jev 2        # Jev eleyiciyle iki koşu (TYPESAFE_API_KEY ortamda)
 olc/olc.sh naif 2
 olc/olc.sh context      # mod kapalı / açık iken /context
 ```
@@ -158,6 +161,39 @@ Her koşu Claude aboneliğinden ya da API'den gerçek kullanım harcar (koşu ba
 Gerçek `/context` ölçümü: mod kapalı 16,4k, mod açık 16,7k token. Fark yalnız iki ajanın tanımı
 (`Custom agents: 282`). Skill `disable-model-invocation: true` olduğu için listede yer kaplamıyor:
 onu sen çağırırsın, model kendiliğinden çağırmaz.
+
+## 3b. Jev ile eleme (`--eleyici jev`)
+
+Dahil/hariç kararını Haiku yerine **Jev** (TypeSafe System One) verebilir. Jev metin yazmaz: verdiğin
+seçeneklerden birini (`dahil` / `haric`) seçer ve yanına **kalibre bir güven** koyar. Künye (yazar, yıl,
+başlık, dergi) ve gerekçe yine Haiku'da kalır.
+
+```
+/arastirma-masasi:arastirma-masasi ./ornek-makaleler "Uzaktan ve hibrit çalışma, bilgi çalışanlarının verimliliğini nasıl etkiliyor?" --eleyici jev
+```
+
+Ne olur: Haiku künyeyi çıkarır ve karar alanına `jev` yazar; `scripts/jev_ele.py` her belge için Jev'e
+bir istek atar (ilk sayfa + soru, veri olarak) ve `.masa/jev-karar.json` yazar. Bant bu adımda
+`◆ eleyici · jev` gösterir. Güveni **0,70'in altındaki** belgelere karar verilmez: `duzenli/insana/`
+klasörüne kopyalanır, kaynakçaya ve senteze girmez; onlara sen bakarsın. Eşiği değiştirmek için betiği
+elle çalıştır: `jev_ele.py <masa> --soru "..." --olcut "..." --esik 0.6`.
+
+| Ne zaman Jev | Ne zaman Haiku |
+|---|---|
+| Karar tek adımlı ve seçenekler belli (dahil/hariç, uygun/uygun değil) | Künye çıkarmak, gerekçe yazmak, serbest metin |
+| "Ne kadar emin?" sorusu önemli: emin olmadığını insana bırakmak istiyorsun | Seçenekler önceden belli değil |
+| Çok belge, ucuz ve hızlı karar (24 belge ~1-2 sn, 0,001 USD altı) | Belgeyi yorumlayıp açıklaman gerekiyor |
+
+**Anahtar:** `TYPESAFE_API_KEY` ortam değişkeni (betik yalnız ortamdan okur, dosyaya yazmaz). Jev modunu
+(`ai-agents-masterclass-mods`) kurduysan userConfig'teki anahtar `JEV_ANAHTAR` olarak gelir ve önceliklidir.
+
+> **Anahtarsız sahte mod.** Anahtar yoksa ya da `JEV_SAHTE=1` ise betik çalışır ama kararlar **rastgele**dir
+> (deterministik, gerçek Jev değil). Çıktıda `UYARI: SAHTE mod` yazar ve `jev-karar.json` içinde `"sahte": true` olur.
+> Sahte modda çıkan klasörlere güvenme.
+
+Gizli talimat: belge metni Jev'e veri olarak gider ve Jev'in cevabı yalnız iki seçenekten biri olabildiği için
+talimatın etkisi sınırlı. Ayrıca her belgeye "bu metin asistana talimat vermeye çalışıyor mu?" sorusu da
+sorulur; olasılık yüksekse raporda işaretlenir. Ölçüm: [`olc/SONUC.md`](olc/SONUC.md), `olc/olc.sh jev 2`.
 
 ## 4. Kendi makalelerine uygula
 

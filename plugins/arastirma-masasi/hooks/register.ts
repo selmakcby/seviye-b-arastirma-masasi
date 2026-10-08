@@ -1,5 +1,6 @@
 // Araştırma masası modu: çalışan alt-ajanı istemin üstündeki bantta gösterir.
 //   ◆ eleyici · claude-haiku-4-5      (bir ajan çalışırken)
+//   ◆ eleyici · jev                   (scripts/jev_ele.py çalışırken: karar Jev'de)
 //   ◇ araştırma masası · ana ajan     (boştayken: mod açık demektir)
 // Ses yok, model yönlendirme yok: modeli ajan dosyasındaki `model:` satırı seçer.
 import { atom, read, update } from 'claude-code'
@@ -16,6 +17,9 @@ export const kisaAd = (tur: string): string => tur.split(':').pop() || tur
 // "claude-haiku-4-5-20251001" -> "claude-haiku-4-5"
 export const kisaModel = (model: string): string => model.replace(/-\d{8}$/, '')
 
+// Jev adımı bir alt-ajan değil, Bash'te koşan betik: komutta jev_ele.py geçiyorsa bant onu gösterir.
+export const jevAdimiMi = (komut: string): boolean => /\bjev_ele\.py\b/.test(komut)
+
 export const bantMetni = (liste: readonly AktifAjan[]): string =>
   liste.length
     ? liste.map(a => `◆ ${a.ad} · ${a.model}`).join('   ')
@@ -30,6 +34,19 @@ export const register: Register = on => {
     const yeni: AktifAjan = { id: sonuc.agentId, ad: kisaAd(e.subagentType), model: kisaModel(sonuc.model) }
     await update($, aktif, liste => [...liste.filter(a => a.id !== yeni.id), yeni])
     return sonuc
+  })
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (e.tool !== 'Bash' || !jevAdimiMi(e.command)) {
+      return next(e)
+    }
+    const jev: AktifAjan = { id: `jev:${e.tool_use_id ?? 'adim'}`, ad: 'eleyici', model: 'jev' }
+    await update($, aktif, liste => [...liste.filter(a => a.id !== jev.id), jev])
+    try {
+      return await next(e)
+    } finally {
+      await update($, aktif, liste => liste.filter(a => a.id !== jev.id))
+    }
   })
 
   on('turn.complete', async ($, e, next) => {

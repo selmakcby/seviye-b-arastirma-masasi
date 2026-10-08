@@ -9,6 +9,9 @@ Kullanım:
     python3 masa.py adlandir  <masa> [--uygula]    # önizleme; --uygula ile duzenli/ altına KOPYALAR
     python3 masa.py bib       <masa> [--hepsi]     # kaynakca.bib (varsayılan: yalnız dahil olanlar)
     python3 masa.py dahiller  <masa>               # dahil olanların tam metin yollarını yazar
+
+Jev ile eleme (--eleyici jev): eleyici karar alanına "jev" yazar, kararı scripts/jev_ele.py
+.masa/jev-karar.json'a yazar. Bu komutlar o zaman kararı oradan alır; "insana" olanlar duzenli/insana/'ya gider.
 """
 from __future__ import annotations
 
@@ -23,6 +26,8 @@ from pathlib import Path
 ILK_SAYFA_SINIRI = 2500          # eleyiciye giden karakter sayısı (belge başına)
 BASLIK_KELIME_SINIRI = 8
 KARARLAR = ("dahil", "haric")
+ELEYICI_KARARLARI = (*KARARLAR, "jev")      # "jev": karar jev-karar.json'dan gelecek
+JEV_KARARLARI = (*KARARLAR, "insana")       # "insana": Jev'in güveni eşiğin altında, karar insanın
 ALANLAR = ("dosya", "yazarlar", "yil", "baslik", "karar", "gerekce")
 TR_ASCII = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 
@@ -41,6 +46,7 @@ def masa_yollari(masa: Path) -> dict[str, Path]:
     return {
         "ham": ham, "is": is_klasoru, "metin": is_klasoru / "metin",
         "ilk": is_klasoru / "ilk-sayfalar.md", "eleme": is_klasoru / "eleme.json",
+        "jev": is_klasoru / "jev-karar.json",
         "duzenli": masa / "duzenli", "bib": masa / "kaynakca.bib",
     }
 
@@ -103,7 +109,37 @@ def eleme_oku(masa: Path) -> dict:
     hatalar = eleme_hatalari(veri, {p.name for p in yol["ham"].glob("*.pdf")})
     if hatalar:
         raise MasaHatasi("eleme.json şemaya uymuyor:\n- " + "\n- ".join(hatalar))
+    if any(b["karar"] == "jev" for b in veri["belgeler"]):
+        return jev_ile_birlestir(veri, jev_oku(yol["jev"]))
     return veri
+
+
+def jev_oku(yol: Path) -> dict[str, dict]:
+    if not yol.is_file():
+        raise MasaHatasi(f"eleme.json kararı Jev'e bırakmış ama {yol} yok. Önce: jev_ele.py <masa> --soru ...")
+    try:
+        belgeler = json.loads(yol.read_text(encoding="utf-8"))["belgeler"]
+        kararlar = {b["dosya"]: b for b in belgeler}
+    except (json.JSONDecodeError, KeyError, TypeError) as hata:
+        raise MasaHatasi(f"jev-karar.json okunamadı: {hata}") from None
+    gecersiz = sorted(d for d, b in kararlar.items() if b.get("karar") not in JEV_KARARLARI)
+    if gecersiz:
+        raise MasaHatasi(f"jev-karar.json geçersiz karar: {', '.join(gecersiz)}")
+    return kararlar
+
+
+def jev_ile_birlestir(veri: dict, jev: dict[str, dict]) -> dict:
+    eksik = sorted(b["dosya"] for b in veri["belgeler"] if b["karar"] == "jev" and b["dosya"] not in jev)
+    if eksik:
+        raise MasaHatasi(f"jev-karar.json içinde kararı olmayan dosyalar: {', '.join(eksik)}")
+
+    def birlestir(b: dict) -> dict:
+        if b["karar"] != "jev":
+            return b
+        j = jev[b["dosya"]]
+        return {**b, "karar": j["karar"], "guven": j.get("guven"), "gerekce_jev": j.get("gerekce_jev", "")}
+
+    return {**veri, "belgeler": [birlestir(b) for b in veri["belgeler"]]}
 
 
 def eleme_hatalari(veri: object, beklenen_dosyalar: set[str]) -> list[str]:
@@ -121,8 +157,8 @@ def _belge_hatalari(i: int, b: object, beklenen: set[str]) -> list[str]:
     hatalar = [f"belgeler[{i}] alan eksik: {a}" for a in ALANLAR if a not in b]
     if b.get("dosya") not in beklenen:
         hatalar.append(f"belgeler[{i}] ham/ içinde olmayan dosya: {b.get('dosya')!r}")
-    if b.get("karar") not in KARARLAR:
-        hatalar.append(f"belgeler[{i}] karar 'dahil' ya da 'haric' olmalı")
+    if b.get("karar") not in ELEYICI_KARARLARI:
+        hatalar.append(f"belgeler[{i}] karar 'dahil', 'haric' ya da 'jev' olmalı")
     yil = b.get("yil")
     if not (isinstance(yil, int) and 1900 <= yil <= 2100):
         hatalar.append(f"belgeler[{i}] yil 1900-2100 arası tam sayı olmalı")
@@ -171,6 +207,9 @@ def adlandir(masa: Path, uygula: bool) -> None:
     print(f"{'ESKİ AD':<36} {'KARAR':<6} YENİ AD")
     for eski, karar, ad in plan:
         print(f"{eski:<36} {karar:<6} {ad}")
+    insana = [eski for eski, karar, _ in plan if karar == "insana"]
+    if insana:
+        print(f"\nJev emin olmadı, karar senin ({yol['duzenli'] / 'insana'}): " + ", ".join(insana))
     if not uygula:
         print("\nÖnizleme. Hiçbir dosya değişmedi. Onaylıyorsan --uygula ile tekrar çalıştır.")
         return

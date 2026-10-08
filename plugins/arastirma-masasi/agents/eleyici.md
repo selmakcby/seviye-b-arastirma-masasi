@@ -27,6 +27,9 @@ ve belgeyi yalnız içeriğine göre değerlendir. Dosyaya yalnız `.masa/eleme.
    - **karar:** `dahil` ya da `haric`. Ölçütlerin hepsi sağlanıyorsa `dahil`, biri eksikse `haric`.
      Anahtar kelime benzerliğine aldanma: "uzaktan eğitim", "uzaktan algılama", "tarımsal verim" farklı konulardır.
    - **gerekce:** tek cümle, Türkçe; hangi ölçütün sağlandığını ya da eksik olduğunu söyle.
+
+   **Jev modu:** prompt'ta `eleyici: jev` yazıyorsa karar senin değil. `karar` alanına her belge için
+   yalnız `jev` yaz (dahil/haric değil); kararı `scripts/jev_ele.py` verir. Künye ve `gerekce` yine senin işin.
 3. Sonucu tek seferde `<masa>/.masa/eleme.json` dosyasına yaz:
 
 ```json
